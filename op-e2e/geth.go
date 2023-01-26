@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net"
+	"path/filepath"
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
@@ -15,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
@@ -118,10 +121,15 @@ func waitForBlock(number *big.Int, client *ethclient.Client, timeout time.Durati
 	}
 }
 
-func initL1Geth(cfg *SystemConfig, genesis *core.Genesis, c clock.Clock, opts ...GethOption) (*node.Node, *eth.Ethereum, error) {
+func initL1Geth(cfg *SystemConfig, genesis *core.Genesis, c clock.Clock, blobsDir string, opts ...GethOption) (*node.Node, *eth.Ethereum, string, error) {
 	ethConfig := &ethconfig.Config{
 		NetworkId: cfg.DeployConfig.L1ChainID,
 		Genesis:   genesis,
+		BlobPool: blobpool.Config{
+			Datadir:   filepath.Join(blobsDir, "pool"),
+			Datacap:   blobpool.DefaultConfig.Datacap,
+			PriceBump: blobpool.DefaultConfig.PriceBump,
+		},
 	}
 	nodeConfig := &node.Config{
 		Name:        "l1-geth",
@@ -135,10 +143,15 @@ func initL1Geth(cfg *SystemConfig, genesis *core.Genesis, c clock.Clock, opts ..
 
 	l1Node, l1Eth, err := createGethNode(false, nodeConfig, ethConfig, []*ecdsa.PrivateKey{cfg.Secrets.CliqueSigner}, opts...)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	// Activate merge
 	l1Eth.Merger().FinalizePoS()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("failed to open tcp listener for http beacon api server: %w", err)
+	}
 
 	// Instead of running a whole beacon node, we run this fake-proof-of-stake sidecar that sequences L1 blocks using the Engine API.
 	l1Node.RegisterLifecycle(&fakePoS{
@@ -150,9 +163,11 @@ func initL1Geth(cfg *SystemConfig, genesis *core.Genesis, c clock.Clock, opts ..
 		finalizedDistance: 8,
 		safeDistance:      4,
 		engineAPI:         catalyst.NewConsensusAPI(l1Eth),
+		blobsDir:          filepath.Join(blobsDir, "beacon"),
+		beaconAPIListener: listener,
 	})
 
-	return l1Node, l1Eth, nil
+	return l1Node, l1Eth, "http://" + listener.Addr().String(), nil
 }
 
 func defaultNodeConfig(name string, jwtPath string) *node.Config {
@@ -173,7 +188,7 @@ func defaultNodeConfig(name string, jwtPath string) *node.Config {
 type GethOption func(ethCfg *ethconfig.Config, nodeCfg *node.Config) error
 
 // init a geth node.
-func initL2Geth(name string, l2ChainID *big.Int, genesis *core.Genesis, jwtPath string, opts ...GethOption) (*node.Node, *eth.Ethereum, error) {
+func initL2Geth(name string, l2ChainID *big.Int, genesis *core.Genesis, jwtPath string, blobPoolDir string, opts ...GethOption) (*node.Node, *eth.Ethereum, error) {
 	ethConfig := &ethconfig.Config{
 		NetworkId: l2ChainID.Uint64(),
 		Genesis:   genesis,
@@ -185,6 +200,11 @@ func initL2Geth(name string, l2ChainID *big.Int, genesis *core.Genesis, jwtPath 
 			GasPrice:          nil,
 			Recommit:          0,
 			NewPayloadTimeout: 0,
+		},
+		BlobPool: blobpool.Config{
+			Datadir:   blobPoolDir,
+			Datacap:   blobpool.DefaultConfig.Datacap,
+			PriceBump: blobpool.DefaultConfig.PriceBump,
 		},
 	}
 	nodeConfig := defaultNodeConfig(fmt.Sprintf("l2-geth-%v", name), jwtPath)

@@ -104,6 +104,7 @@ func DefaultSystemConfig(t *testing.T) SystemConfig {
 		L1InfoPredeployAddress: predeploys.L1BlockAddr,
 		JWTFilePath:            writeDefaultJWT(t),
 		JWTSecret:              testingJWTSecret,
+		BlobsPath:              t.TempDir(),
 		Nodes: map[string]*rollupNode.Config{
 			"sequencer": {
 				Driver: driver.Config{
@@ -167,6 +168,8 @@ type SystemConfig struct {
 	JWTFilePath string
 	JWTSecret   [32]byte
 
+	BlobsPath string
+
 	Premine        map[common.Address]*big.Int
 	Nodes          map[string]*rollupNode.Config // Per node config. Don't use populate rollup.Config
 	Loggers        map[string]log.Logger
@@ -210,6 +213,8 @@ type System struct {
 	L2OutputSubmitter *l2os.L2OutputSubmitter
 	BatchSubmitter    *bss.BatchSubmitter
 	Mocknet           mocknet.Mocknet
+
+	L1BeaconAPIAddr string
 
 	// TimeTravelClock is nil unless SystemConfig.SupportL1TimeTravel was set to true
 	// It provides access to the clock instance used by the L1 node. Calling TimeTravelClock.AdvanceBy
@@ -375,6 +380,8 @@ func (cfg SystemConfig) Start(_opts ...SystemConfigOption) (*System, error) {
 			DepositContractAddress: cfg.DeployConfig.OptimismPortalProxy,
 			L1SystemConfigAddress:  cfg.DeployConfig.SystemConfigProxy,
 			RegolithTime:           cfg.DeployConfig.RegolithTime(uint64(cfg.DeployConfig.L1GenesisBlockTimestamp)),
+			// 4844
+			BlobsEnabledL1Timestamp: cfg.DeployConfig.BlobsUpgradeTime(uint64(cfg.DeployConfig.L1GenesisBlockTimestamp)),
 		}
 	}
 	defaultConfig := makeRollupConfig()
@@ -384,15 +391,16 @@ func (cfg SystemConfig) Start(_opts ...SystemConfigOption) (*System, error) {
 	sys.RollupConfig = &defaultConfig
 
 	// Initialize nodes
-	l1Node, l1Backend, err := initL1Geth(&cfg, l1Genesis, c, cfg.GethOptions["l1"]...)
+	l1Node, l1Backend, l1BeaconAPIAddr, err := initL1Geth(&cfg, l1Genesis, c, path.Join(cfg.BlobsPath, "l1"), cfg.GethOptions["l1"]...)
 	if err != nil {
 		return nil, err
 	}
+	sys.L1BeaconAPIAddr = l1BeaconAPIAddr
 	sys.Nodes["l1"] = l1Node
 	sys.Backends["l1"] = l1Backend
 
 	for name := range cfg.Nodes {
-		node, backend, err := initL2Geth(name, big.NewInt(int64(cfg.DeployConfig.L2ChainID)), l2Genesis, cfg.JWTFilePath, cfg.GethOptions[name]...)
+		node, backend, err := initL2Geth(name, big.NewInt(int64(cfg.DeployConfig.L2ChainID)), l2Genesis, cfg.JWTFilePath, path.Join(cfg.BlobsPath, name), cfg.GethOptions[name]...)
 		if err != nil {
 			return nil, err
 		}
@@ -422,7 +430,7 @@ func (cfg SystemConfig) Start(_opts ...SystemConfigOption) (*System, error) {
 
 	for name, rollupCfg := range cfg.Nodes {
 		configureL1(rollupCfg, l1Node)
-		configureL2(rollupCfg, sys.Nodes[name], cfg.JWTSecret)
+		configureL2(rollupCfg, sys.Nodes[name], cfg.JWTSecret, l1BeaconAPIAddr)
 
 		rollupCfg.L2Sync = &rollupNode.PreparedL2SyncEndpoint{
 			Client:   nil,
@@ -698,7 +706,7 @@ func configureL1(rollupNodeCfg *rollupNode.Config, l1Node *node.Node) {
 		HttpPollInterval: time.Millisecond * 100,
 	}
 }
-func configureL2(rollupNodeCfg *rollupNode.Config, l2Node *node.Node, jwtSecret [32]byte) {
+func configureL2(rollupNodeCfg *rollupNode.Config, l2Node *node.Node, jwtSecret [32]byte, l1BeaconAPIAddr string) {
 	useHTTP := os.Getenv("OP_E2E_USE_HTTP") == "true"
 	l2EndpointConfig := l2Node.WSAuthEndpoint()
 	if useHTTP {
@@ -709,6 +717,7 @@ func configureL2(rollupNodeCfg *rollupNode.Config, l2Node *node.Node, jwtSecret 
 		L2EngineAddr:      l2EndpointConfig,
 		L2EngineJWTSecret: jwtSecret,
 	}
+	rollupNodeCfg.Beacon = &rollupNode.L1BeaconEndpointConfig{BeaconAddr: l1BeaconAPIAddr}
 }
 
 func (cfg SystemConfig) L1ChainIDBig() *big.Int {

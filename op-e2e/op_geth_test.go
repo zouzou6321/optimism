@@ -155,7 +155,7 @@ func TestGethOnlyPendingBlockIsLatest(t *testing.T) {
 	require.NoError(t, opGeth.L2Client.SendTransaction(ctx, tx), "send tx to make pending work different")
 	checkPending("prepared", 0)
 
-	rpcClient, err := opGeth.node.Attach()
+	rpcClient := opGeth.node.Attach()
 	require.NoError(t, err)
 	defer rpcClient.Close()
 

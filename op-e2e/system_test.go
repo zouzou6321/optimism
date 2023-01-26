@@ -605,7 +605,7 @@ func TestSystemRPCAltSync(t *testing.T) {
 		key:  "afterRollupNodeStart",
 		role: "sequencer",
 		action: func(sCfg *SystemConfig, system *System) {
-			rpc, _ := system.Nodes["sequencer"].Attach() // never errors
+			rpc := system.Nodes["sequencer"].Attach() // never errors
 			cfg.Nodes["verifier"].L2Sync = &rollupNode.PreparedL2SyncEndpoint{
 				Client: client.NewBaseRPCClient(rpc),
 			}
@@ -740,11 +740,11 @@ func TestSystemP2PAltSync(t *testing.T) {
 		},
 	}
 	configureL1(syncNodeCfg, sys.Nodes["l1"])
-	syncerL2Engine, _, err := initL2Geth("syncer", big.NewInt(int64(cfg.DeployConfig.L2ChainID)), sys.L2GenesisCfg, cfg.JWTFilePath)
+	syncerL2Engine, _, err := initL2Geth("syncer", big.NewInt(int64(cfg.DeployConfig.L2ChainID)), sys.L2GenesisCfg, cfg.JWTFilePath, t.TempDir())
 	require.NoError(t, err)
 	require.NoError(t, syncerL2Engine.Start())
 
-	configureL2(syncNodeCfg, syncerL2Engine, cfg.JWTSecret)
+	configureL2(syncNodeCfg, syncerL2Engine, cfg.JWTSecret, sys.L1BeaconAPIAddr)
 
 	syncerNode, err := rollupNode.New(context.Background(), syncNodeCfg, cfg.Loggers["syncer"], snapLog, "", metrics.NewMetrics(""))
 	require.NoError(t, err)
@@ -757,8 +757,7 @@ func TestSystemP2PAltSync(t *testing.T) {
 	_, err = sys.Mocknet.ConnectPeers(sys.RollupNodes["bob"].P2P().Host().ID(), syncerNode.P2P().Host().ID())
 	require.NoError(t, err)
 
-	rpc, err := syncerL2Engine.Attach()
-	require.NoError(t, err)
+	rpc := syncerL2Engine.Attach()
 	l2Verif := ethclient.NewClient(rpc)
 
 	// It may take a while to sync, but eventually we should see the sequenced data show up

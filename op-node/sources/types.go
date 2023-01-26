@@ -108,7 +108,13 @@ type rpcHeader struct {
 	BaseFee *hexutil.Big `json:"baseFeePerGas"`
 
 	// WithdrawalsRoot was added by EIP-4895 and is ignored in legacy headers.
-	WithdrawalsRoot *common.Hash `json:"withdrawalsRoot"`
+	WithdrawalsRoot *common.Hash `json:"withdrawalsRoot,omitempty"`
+
+	// DataGasUsed was added by EIP-4844 and is ignored in legacy headers.
+	DataGasUsed *hexutil.Uint64 `json:"dataGasUsed,omitempty"`
+
+	// ExcessDataGas was added by EIP-4844 and is ignored in legacy headers.
+	ExcessDataGas *hexutil.Uint64 `json:"excessDataGas,omitempty"`
 
 	// untrusted info included by RPC, may have to be checked
 	Hash common.Hash `json:"hash"`
@@ -161,6 +167,8 @@ func (hdr *rpcHeader) createGethHeader() *types.Header {
 		Nonce:           hdr.Nonce,
 		BaseFee:         (*big.Int)(hdr.BaseFee),
 		WithdrawalsHash: hdr.WithdrawalsRoot,
+		DataGasUsed:     (*uint64)(hdr.DataGasUsed),
+		ExcessDataGas:   (*uint64)(hdr.ExcessDataGas),
 	}
 }
 

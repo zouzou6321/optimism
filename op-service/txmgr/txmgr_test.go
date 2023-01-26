@@ -13,6 +13,7 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
+	"github.com/ethereum/go-ethereum/core/txpool"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -157,6 +158,13 @@ type mockBackend struct {
 	minedTxs map[common.Hash]minedTxInfo
 }
 
+func (b *mockBackend) SendTransaction4844(ctx context.Context, tx *txpool.Transaction) error {
+	if b.send == nil {
+		panic("set sender function was not set")
+	}
+	return b.send(ctx, tx.Tx)
+}
+
 // newMockBackend initializes a new mockBackend.
 func newMockBackend(g *gasPricer) *mockBackend {
 	return &mockBackend{
@@ -282,7 +290,7 @@ func TestTxMgrConfirmAtMinGasPrice(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	receipt, err := h.mgr.sendTx(ctx, tx)
+	receipt, err := h.mgr.sendTx(ctx, &txpool.Transaction{Tx: tx})
 	require.Nil(t, err)
 	require.NotNil(t, receipt)
 	require.Equal(t, gasPricer.expGasFeeCap().Uint64(), receipt.GasUsed)
@@ -310,7 +318,7 @@ func TestTxMgrNeverConfirmCancel(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	receipt, err := h.mgr.sendTx(ctx, tx)
+	receipt, err := h.mgr.sendTx(ctx, &txpool.Transaction{Tx: tx})
 	require.Equal(t, err, context.DeadlineExceeded)
 	require.Nil(t, receipt)
 }
@@ -339,7 +347,7 @@ func TestTxMgrConfirmsAtHigherGasPrice(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	receipt, err := h.mgr.sendTx(ctx, tx)
+	receipt, err := h.mgr.sendTx(ctx, &txpool.Transaction{Tx: tx})
 	require.Nil(t, err)
 	require.NotNil(t, receipt)
 	require.Equal(t, h.gasPricer.expGasFeeCap().Uint64(), receipt.GasUsed)
@@ -370,7 +378,7 @@ func TestTxMgrBlocksOnFailingRpcCalls(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	receipt, err := h.mgr.sendTx(ctx, tx)
+	receipt, err := h.mgr.sendTx(ctx, &txpool.Transaction{Tx: tx})
 	require.Equal(t, err, context.DeadlineExceeded)
 	require.Nil(t, receipt)
 }
@@ -383,8 +391,10 @@ func TestTxMgr_CraftTx(t *testing.T) {
 
 	// Craft the transaction.
 	gasTipCap, gasFeeCap := h.gasPricer.feesForEpoch(h.gasPricer.epoch + 1)
-	tx, err := h.mgr.craftTx(context.Background(), candidate)
+	txp, err := h.mgr.craftTx(context.Background(), candidate)
 	require.Nil(t, err)
+	require.NotNil(t, txp)
+	tx := txp.Tx
 	require.NotNil(t, tx)
 
 	// Validate the gas tip cap and fee cap.
@@ -415,9 +425,10 @@ func TestTxMgr_EstimateGas(t *testing.T) {
 	tx, err := h.mgr.craftTx(context.Background(), candidate)
 	require.Nil(t, err)
 	require.NotNil(t, tx)
+	require.NotNil(t, tx.Tx)
 
 	// Check that the gas was estimated correctly.
-	require.Equal(t, gasEstimate, tx.Gas())
+	require.Equal(t, gasEstimate, tx.Tx.Gas())
 }
 
 // TestTxMgrOnlyOnePublicationSucceeds asserts that the tx manager will return a
@@ -448,7 +459,7 @@ func TestTxMgrOnlyOnePublicationSucceeds(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	receipt, err := h.mgr.sendTx(ctx, tx)
+	receipt, err := h.mgr.sendTx(ctx, &txpool.Transaction{Tx: tx})
 	require.Nil(t, err)
 
 	require.NotNil(t, receipt)
@@ -483,7 +494,7 @@ func TestTxMgrConfirmsMinGasPriceAfterBumping(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	receipt, err := h.mgr.sendTx(ctx, tx)
+	receipt, err := h.mgr.sendTx(ctx, &txpool.Transaction{Tx: tx})
 	require.Nil(t, err)
 	require.NotNil(t, receipt)
 	require.Equal(t, h.gasPricer.expGasFeeCap().Uint64(), receipt.GasUsed)
@@ -528,7 +539,7 @@ func TestTxMgrDoesntAbortNonceTooLowAfterMiningTx(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	receipt, err := h.mgr.sendTx(ctx, tx)
+	receipt, err := h.mgr.sendTx(ctx, &txpool.Transaction{Tx: tx})
 	require.Nil(t, err)
 	require.NotNil(t, receipt)
 	require.Equal(t, h.gasPricer.expGasFeeCap().Uint64(), receipt.GasUsed)
@@ -656,6 +667,10 @@ func (b *failingBackend) HeaderByNumber(_ context.Context, _ *big.Int) (*types.H
 
 func (b *failingBackend) CallContract(_ context.Context, _ ethereum.CallMsg, _ *big.Int) ([]byte, error) {
 	return nil, errors.New("unimplemented")
+}
+
+func (b *failingBackend) SendTransaction4844(ctx context.Context, tx *txpool.Transaction) error {
+	return errors.New("unimplemented")
 }
 
 func (b *failingBackend) SendTransaction(_ context.Context, _ *types.Transaction) error {
