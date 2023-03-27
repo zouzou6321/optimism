@@ -1,15 +1,11 @@
 import { DeployConfig } from '../src/deploy-config'
 
-// NOTE: The 'mainnet' network is currently being used for bedrock migration rehearsals.
-// The system configured below is not yet live on mainnet, and many of the addresses used are
-// unsafe for a production system.
 const config: DeployConfig = {
   finalSystemOwner: '0x9BA6e03D8B90dE867373Db8cF1A58d2F7F006b3A',
   controller: '0x78339d822c23d943e4a2d4c3dd5408f66e6d662d',
   portalGuardian: '0x78339d822c23d943e4a2d4c3dd5408f66e6d662d',
 
-  l1StartingBlockTag:
-    '0x126e52a0cc0ae18948f567ee9443f4a8f0db67c437706e35baee424eb314a0d0',
+  l1StartingBlockTag: '0x126e52a0cc0ae18948f567ee9443f4a8f0db67c437706e35baee424eb314a0d0',
   l1ChainID: 1,
   l2ChainID: 10,
   l2BlockTime: 2,
