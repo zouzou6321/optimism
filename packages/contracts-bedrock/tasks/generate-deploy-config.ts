@@ -1,4 +1,6 @@
 import fs from 'fs'
+import path from 'path'
+
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 
@@ -12,11 +14,7 @@ task(
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const config = require(`${base}.ts`).default
       console.log('config:', config)
-      fs.writeFileSync(
-        `${base}.json`,
-        JSON.stringify(config, null, 2),
-        'utf8'
-      )
+      fs.writeFileSync(`${base}.json`, JSON.stringify(config, null, 2), 'utf8')
     } else {
       throw new Error('not found')
     }
