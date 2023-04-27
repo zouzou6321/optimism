@@ -839,6 +839,7 @@ object "L1CrossDomainMessenger_125" {
                 }
                 case 0xb28ade25 { external_fun_baseGas_1378() }
                 case 0xd764ad0b {
+                    //path1: dispatcher
                     external_fun_relayMessage_1312()
                 }
                 case 0xecc70428 {
@@ -1533,10 +1534,15 @@ object "L1CrossDomainMessenger_125" {
                     value5, value6 := abi_decode_t_bytes_calldata_ptr(add(headStart, offset), dataEnd)
                 }
             }
+            // path2: external wrapper around relayMessage
             function external_fun_relayMessage_1312()
             {
+                // audit: abi decoding
+                // abi_decode Will revert if the input data is malformed. OK because we assume the Portal always calls
+                // with the correct input
                 let param_0, param_1, param_2, param_3, param_4, param_5, param_6 := abi_decode_tuple_t_uint256t_addresst_addresst_uint256t_uint256t_bytes_calldata_ptr(4, calldatasize())
                 fun_relayMessage_1312(param_0, param_1, param_2, param_3, param_4, param_5, param_6)
+                // clean up stuff to return
                 let memPos := allocate_unbounded()
                 let memEnd := abi_encode_tuple__to__fromStack(memPos)
                 return(memPos, sub(memEnd, memPos))
@@ -2424,6 +2430,7 @@ object "L1CrossDomainMessenger_125" {
                 diff := sub(x, y)
             }
             /// @ast-id 1312 @src 28:11050:15900  "function relayMessage(..."
+            // path3
             function fun_relayMessage_1312(var__nonce_1102, var__sender_1104, var__target_1106, var__value_1108, var__minGasLimit_1110, var__message_1112_offset, var__message_1112_length)
             {
                 /// @src 28:11287:11295  "Encoding"
@@ -2442,6 +2449,7 @@ object "L1CrossDomainMessenger_125" {
                 let expr_1124 := 0x02
                 /// @src 28:11355:11366  "version < 2"
                 let expr_1125 := lt(cleanup_t_uint16(expr_1123), convert_t_rational_2_by_1_to_t_uint16(expr_1124))
+                // audit: OK to revert here
                 /// @src 28:11334:11469  "require(..."
                 require_helper_t_stringliteral_613c3f25ff5f199e4ef46f528b3fdb1db106536665e79fc5664217d5ace5b032(expr_1125)
                 /// @src 28:11671:11678  "version"
