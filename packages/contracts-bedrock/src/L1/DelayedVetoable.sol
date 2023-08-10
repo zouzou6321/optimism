@@ -54,12 +54,24 @@ contract DelayedVetoable {
         return _initiator;
     }
 
+    //// @notice Queries the vetoer address.
+    /// @return Vetoer address.
+    function vetoer() public forwardCallIfNotAdmin returns (address) {
+        return _vetoer;
+    }
+
+
     //// @notice Queries the target address.
     /// @return Target address.
     function target() public forwardCallIfNotAdmin returns (address) {
         return _target;
     }
 
+    /// @notice Gets the delay
+    /// @return Delay address.
+    function delay() public forwardCallIfNotAdmin returns (uint256) {
+        return _delay;
+    }
 
     /// @notice Changes the initiator of the contract.
     /// @param initiator New initiator of the contract.
