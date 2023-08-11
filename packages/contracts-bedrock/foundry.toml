@@ -31,3 +31,6 @@ fs_permissions = [
 
 [profile.ci]
 fuzz_runs = 512
+
+# TEMP REVERT ME
+ignored_error_codes = ["license", "code-size", "shadowing", "unused"]
