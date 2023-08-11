@@ -9,33 +9,34 @@ import { DelayedVetoable } from "../../src/L1/DelayedVetoable.sol";
 
 contract DelayedVetoable_Succeeds_Invariants is StdInvariant, Test {
     DelayedVetoable delayedVetoable;
-    DelayedVetoable_Actor initiator;
-    DelayedVetoable_Actor vetoer;
+    DelayedVetoable_Actor initiatorActor;
+    DelayedVetoable_Actor vetoerActor;
 
     // The address that delayedVetoable will call to
     address dvTarget;
 
     function setUp() public {
-        initiator = new DelayedVetoable_Actor(vm, delayedVetoable);
+        initiatorActor = new DelayedVetoable_Actor(vm, delayedVetoable);
+        vetoerActor = new DelayedVetoable_Actor(vm, delayedVetoable);
 
-        vetoer = new DelayedVetoable_Actor(vm, delayedVetoable);
 
 
 
 
         delayedVetoable = new DelayedVetoable({
-            initiator:
-            vetoer:
-            target:
-            delay:
-        })
+            initiator: address(initiatorActor),
+            vetoer: address(vetoerActor),
+            target: address(0xabba),
+            delay: 100
+        });
 
 
         // Set the caller to this contract
         targetSender(address(this));
 
         // Target the safe caller actor.
-        targetContract(address(actor));
+        targetContract(address(initiatorActor));
+        targetContract(address(vetoerActor));
 
     }
 
@@ -56,8 +57,9 @@ contract DelayedVetoable_Succeeds_Invariants is StdInvariant, Test {
 
 contract DelayedVetoable_Actor {
     DelayedVetoable delayedVetoable;
+    Vm vm;
 
-    constructor(VM vm, DelayedVetoable delayedVetoable_) {
+    constructor(Vm vm, DelayedVetoable delayedVetoable_) {
         delayedVetoable = delayedVetoable_;
     }
 
