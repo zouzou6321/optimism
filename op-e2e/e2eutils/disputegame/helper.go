@@ -184,7 +184,7 @@ func (h *FactoryHelper) StartCannonGameWithCorrectRoot(ctx context.Context, roll
 		cfg.Datadir,
 		maxDepth,
 	)
-	pos := faultTypes.NewPositionFromGIndex(maxDepth)
+	pos := faultTypes.NewPosition(0, 0)
 	rootClaim, err := provider.Get(ctx, pos)
 	h.require.NoError(err, "Compute correct root hash")
 	// Override the VM status to claim the root is invalid
