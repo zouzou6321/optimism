@@ -513,11 +513,11 @@ New frames for timed-out channels are dropped instead of buffered.
 
 #### Reading
 
-The channel-bank can only output data from the first opened channel.
-
 Upon reading, while the first opened channel is timed-out, remove it from the channel-bank.
 
-Once the first opened channel, if any, is not timed-out and is ready, then it is read and removed from the channel-bank.
+Prior to the Meadow network upgrade, once the first opened channel, if any, is not timed-out and is ready,
+then it is read and removed from the channel-bank. After the Meadow network upgrade, the entire channel bank
+is scanned in FIFO order (by open time) & the first ready (i.e. not timed-out) channel will be returned.
 
 A channel is ready if:
 
@@ -534,7 +534,7 @@ a new channel is opened, tagged with the current L1 block, and appended to the c
 Frame insertion conditions:
 
 - New frames matching timed-out channels that have not yet been pruned from the channel-bank are dropped.
-- Duplicate frames (by frame number) for frames that have not yet been pruned from the channel-bank are dropped.
+- Duplicate frames (by frame number) for frames that have not been pruned from the channel-bank are dropped.
 - Duplicate closes (new frame `is_last == 1`, but the channel has already seen a closing frame and has not yet been
     pruned from the channel-bank) are dropped.
 
