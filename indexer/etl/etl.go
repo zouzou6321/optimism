@@ -71,10 +71,10 @@ func (etl *ETL) Start(ctx context.Context) error {
 					etl.log.Error("error querying for headers", "err", err)
 				} else if len(newHeaders) == 0 {
 					etl.log.Warn("no new headers. processor unexpectedly at head...")
+				} else {
+					headers = newHeaders
+					etl.metrics.RecordBatchHeaders(len(newHeaders))
 				}
-
-				headers = newHeaders
-				etl.metrics.RecordBatchHeaders(len(newHeaders))
 			}
 
 			// only clear the reference if we were able to process this batch
