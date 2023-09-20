@@ -2,6 +2,8 @@ package types
 
 import (
 	"errors"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 var (
@@ -37,7 +39,7 @@ type Game interface {
 }
 
 type claimEntry struct {
-	ClaimData
+	Value               common.Hash
 	ParentContractIndex int
 }
 
@@ -167,7 +169,7 @@ func (g *gameState) getParent(claim Claim) *extendedClaim {
 
 func makeClaimEntry(claim Claim) claimEntry {
 	return claimEntry{
-		ClaimData:           claim.ClaimData,
+		Value:               claim.ClaimData.Value,
 		ParentContractIndex: claim.ParentContractIndex,
 	}
 }
