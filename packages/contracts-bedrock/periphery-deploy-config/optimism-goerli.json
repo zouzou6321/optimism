@@ -1,3 +1,7 @@
 {
-  "faucetAdmin": "0xf2C22a95bBA6F35545269183D8d1751a27F047F6"
+  "faucetAdmin": "0xf2C22a95bBA6F35545269183D8d1751a27F047F6",
+  "faucetDrippieOwner": "0xEa193Fd9565284E7534dDDA15b07B119e7792644",
+  "faucetDripV1Value": 100000000000000000,
+  "faucetDripV1Interval": 86400,
+  "faucetDripV1Threshold": 1000000000000000000
 }

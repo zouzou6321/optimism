@@ -13,6 +13,10 @@ contract PeripheryDeployConfig is Script {
     string internal _json;
 
     address public faucetAdmin;
+    address public faucetDrippieOwner;
+    uint256 public faucetDripV1Value;
+    uint256 public faucetDripV1Interval;
+    uint256 public faucetDripV1Threshold;
 
     constructor(string memory _path) {
         console.log("PeripheryDeployConfig: reading file %s", _path);
@@ -24,5 +28,9 @@ contract PeripheryDeployConfig is Script {
         }
 
         faucetAdmin = stdJson.readAddress(_json, "$.faucetAdmin");
+        faucetDrippieOwner = stdJson.readAddress(_json, "$.faucetDrippieOwner");
+        faucetDripV1Value = stdJson.readUint(_json, "$.faucetDripV1Value");
+        faucetDripV1Interval = stdJson.readUint(_json, "$.faucetDripV1Interval");
+        faucetDripV1Threshold = stdJson.readUint(_json, "$.faucetDripV1Threshold");
     }
 }
