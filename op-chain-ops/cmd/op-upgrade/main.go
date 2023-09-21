@@ -37,14 +37,19 @@ func main() {
 				Usage:   "L2 RPC URL",
 				EnvVars: []string{"L2_RPC_URL"},
 			},
+			&cli.Uint64SliceFlag{
+				Name:  "chain-ids",
+				Usage: "Chain IDs corresponding to chains to upgrade. Corresponds to all chains if empty",
+			},
 			&cli.PathFlag{
 				Name:     "deploy-config",
+				Usage:    "The path to the deploy config file",
 				Required: true,
 				EnvVars:  []string{"DEPLOY_CONFIG"},
 			},
 			&cli.PathFlag{
 				Name:    "outfile",
-				Usage:   "",
+				Usage:   "The file to write the output to. If not specified, output is written to stdout",
 				EnvVars: []string{"OUTFILE"},
 			},
 		},
@@ -56,7 +61,18 @@ func main() {
 	}
 }
 
+func containsUint64(slice []uint64, val uint64) bool {
+	for _, v := range slice {
+		if v == val {
+			return true
+		}
+	}
+	return false
+}
+
 func entrypoint(ctx *cli.Context) error {
+	//chainIDs := ctx.Uint64Slice("chain-ids")
+
 	config, err := genesis.NewDeployConfig(ctx.Path("deploy-config"))
 	if err != nil {
 		return err
@@ -82,6 +98,7 @@ func entrypoint(ctx *cli.Context) error {
 		return fmt.Errorf("no chain config for chain ID %d", l2ChainID.Uint64())
 	}
 
+	log.Info("Detecting on chain contracts")
 	// Tracking the individual addresses can be deprecated once the system is upgraded
 	// to the new contracts where the system config has a reference to each address.
 	addresses, ok := superchain.Addresses[l2ChainID.Uint64()]
@@ -93,16 +110,13 @@ func entrypoint(ctx *cli.Context) error {
 		return fmt.Errorf("error getting contract versions: %w", err)
 	}
 
-	log.Info(
-		"Current Versions",
-		"L1CrossDomainMessenger", versions.L1CrossDomainMessenger,
-		"L1ERC721Bridge", versions.L1ERC721Bridge,
-		"L1StandardBridge", versions.L1StandardBridge,
-		"L2OutputOracle", versions.L2OutputOracle,
-		"OptimismMintableERC20Factory", versions.OptimismMintableERC20Factory,
-		"OptimismPortal", versions.OptimismPortal,
-		"SystemConfig", versions.SystemConfig,
-	)
+	log.Info("L1CrossDomainMessenger", "version", versions.L1CrossDomainMessenger, "address", addresses.L1CrossDomainMessengerProxy)
+	log.Info("L1ERC721Bridge", "version", versions.L1ERC721Bridge, "address", addresses.L1ERC721BridgeProxy)
+	log.Info("L1StandardBridge", "version", versions.L1StandardBridge, "address", addresses.L1StandardBridgeProxy)
+	log.Info("L2OutputOracle", "version", versions.L2OutputOracle, "address", addresses.L2OutputOracleProxy)
+	log.Info("OptimismMintableERC20Factory", "version", versions.OptimismMintableERC20Factory, "address", addresses.OptimismMintableERC20FactoryProxy)
+	log.Info("OptimismPortal", "version", versions.OptimismPortal, "address", addresses.OptimismPortalProxy)
+	log.Info("SystemConfig", "version", versions.SystemConfig, "address", chainConfig.SystemConfigAddr)
 
 	implementations, ok := superchain.Implementations[l1ChainID.Uint64()]
 	if !ok {
@@ -113,6 +127,16 @@ func entrypoint(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	log.Info("Upgrading to the following versions")
+	log.Info("L1CrossDomainMessenger", "version", list.L1CrossDomainMessenger.Version, "address", list.L1CrossDomainMessenger.Address)
+	log.Info("L1ERC721Bridge", "version", list.L1ERC721Bridge.Version, "address", list.L1ERC721Bridge.Address)
+	log.Info("L1StandardBridge", "version", list.L1StandardBridge.Version, "address", list.L1StandardBridge.Address)
+	log.Info("L2OutputOracle", "version", list.L2OutputOracle.Version, "address", list.L2OutputOracle.Address)
+	log.Info("OptimismMintableERC20Factory", "version", list.OptimismMintableERC20Factory.Version, "address", list.OptimismMintableERC20Factory.Address)
+	log.Info("OptimismPortal", "version", list.OptimismPortal.Version, "address", list.OptimismPortal.Address)
+	log.Info("SystemConfig", "version", list.SystemConfig.Version, "address", list.SystemConfig.Address)
+
 	if err := upgrades.CheckL1(ctx.Context, &list, clients.L1Client); err != nil {
 		return fmt.Errorf("error checking L1: %w", err)
 	}
@@ -131,7 +155,7 @@ func entrypoint(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(data)
+		fmt.Println(string(data))
 	}
 
 	return nil
